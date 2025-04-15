@@ -709,14 +709,22 @@ if (class_exists("GFForms")) {
 
             foreach ($sad_pages as $page) {
                 $document_status = $api->document->getStatus($page->document_id);
-
                 if ($document_status != 'trash') {
-                    if ('publish' === get_post_status($page->page_id)) {
+                    $pageStatus = get_post_status($page->page_id);
+
+                    // if page status is empty continue
+                    if (empty($pageStatus)) {
+                        continue;
+                    }
+
+
+                    if ($pageStatus != 'trash' && $pageStatus != 'draft') {
                         $choices[] = array(
                             'label' => get_the_title($page->page_id),
                             'value' => $page->page_id,
                         );
                     }
+                 
                 }
             }
 
