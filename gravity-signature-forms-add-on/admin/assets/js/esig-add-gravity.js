@@ -13,10 +13,21 @@
                    
                    $("#esig-gravity-form-first-step").hide();
                   
-                   // jquery ajax to get form field . 
-                   jQuery.post(esigAjax.ajaxurl,{ action:"esig_gravity_form_fields",form_id:form_id},function( data ){ 
+                   // jquery ajax to get form field with nonce for security
+                   var ajaxUrl = (typeof esigGravityAjax !== 'undefined') ? esigGravityAjax.ajaxurl : esigAjax.ajaxurl;
+                   var nonce = (typeof esigGravityAjax !== 'undefined') ? esigGravityAjax.esig_gf_nonce : '';
+                   
+                   jQuery.post(ajaxUrl, {
+                       action: "esig_gravity_form_fields",
+                       form_id: form_id,
+                       esig_gf_nonce: nonce
+                   }, function( data ){ 
 				      $("#esig-gf-field-option").html(data);
-				},"html");
+				}, "html").fail(function(xhr, status, error) {
+				    alert('Error loading form fields. Please try again.');
+				    $("#esig-gravity-form-first-step").show();
+				    $("#esig-gf-second-step").hide();
+				});
                    
                    $("#esig-gf-second-step").show();                        
   

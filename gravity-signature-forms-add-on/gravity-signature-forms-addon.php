@@ -6,7 +6,7 @@
  * Plugin Name:       Signature Add-On for Gravity Forms by ApproveMe.com
  * Plugin URI:        http://aprv.me/2lfrDYG
  * Description:       This add-on makes it possible to automatically email a WP E-Signature document (or redirect a user to a document) after the user has succesfully submitted a Gravity Form. You can also insert data from the submitted Gravity Form into the WP E-Signature document.
- * Version:           1.8.6
+ * Version:           1.8.8
  * Author:            ApproveMe.com
  * Author URI:        https://www.approveme.com/
  * Text Domain:       esig-gf

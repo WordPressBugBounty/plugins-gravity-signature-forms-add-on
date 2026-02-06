@@ -734,7 +734,8 @@ if (class_exists("GFForms")) {
         // returns field choise 
         public function get_field_choice($name) {
 
-            $form_id = rgar($_GET , 'id');
+            // Sanitize and validate form ID
+            $form_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
 
             $gravity_form = GFAPI::get_form($form_id);
 

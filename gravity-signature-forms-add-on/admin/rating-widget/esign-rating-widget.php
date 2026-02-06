@@ -45,9 +45,40 @@ if (!class_exists('esignRatingWidgetGravity')) :
         
         }
 
-        public function esigGravityRattingWidgetRemove() {         
-            update_option('remove_rating_widget_gravity','Yes');
-            die();
+        public function esigGravityRattingWidgetRemove() {
+            
+            // Verify nonce for security (using same nonce as other Gravity Forms admin actions)
+            if (!check_ajax_referer('esig_gravity_form_fields', 'esig_gf_nonce', false)) {
+                wp_send_json_error(array('message' => __('Security check failed. Please refresh the page and try again.', 'esig-gf')));
+                return;
+            }
+
+            // Check user capabilities
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'esig-gf')));
+                return;
+            }
+
+            // Check E-Signature plugin is available
+            if (!function_exists('WP_E_Sig')) {
+                wp_send_json_error(array('message' => __('E-Signature plugin is not available.', 'esig-gf')));
+                return;
+            }
+
+            // Check current user is e-signature sender
+            if (!WP_E_Sig()->user->checkEsigAdmin(get_current_user_id())) {
+                wp_send_json_error(array('message' => __('You are not authorized to perform this action.', 'esig-gf')));
+                return;
+            }
+
+            // Update option with proper sanitization
+            $result = update_option('remove_rating_widget_gravity', 'Yes');
+            
+            if ($result) {
+                wp_send_json_success(array('message' => __('Rating widget hidden successfully.', 'esig-gf')));
+            } else {
+                wp_send_json_error(array('message' => __('Failed to update settings.', 'esig-gf')));
+            }
         }
         
          public function enqueueAdminStyles() {
@@ -71,6 +102,12 @@ if (!class_exists('esignRatingWidgetGravity')) :
             if (($current == 'toplevel_page_esign-docs')) {
               
                  wp_enqueue_script('gravity-rating-widget-admin-script', plugins_url('assets/js/rating-widget-control.js', __FILE__), array('jquery', 'jquery-ui-dialog'), esigGetVersion(), true);
+                 
+                 // Localize script with nonce for AJAX security (using same nonce as other Gravity Forms admin actions)
+                 wp_localize_script('gravity-rating-widget-admin-script', 'esigGravityAjax', array(
+                     'ajaxurl' => admin_url('admin-ajax.php'),
+                     'esig_gf_nonce' => wp_create_nonce('esig_gravity_form_fields')
+                 ));
             }
 
         }
