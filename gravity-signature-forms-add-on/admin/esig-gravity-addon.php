@@ -393,9 +393,8 @@ if (class_exists("GFForms")) {
             if (!$document_id) {
                 return;
             }
-            $document_model = new WP_E_Document();
             // getting document titile ; 
-            $document = $document_model->getDocument($document_id);
+            $document = \WpEsignature\Models\Document::getInstance()->getDocument($document_id);
 
             return '<a href="edit.php?post_type=esign&page=esign-edit-document&document_id=' . $document_id . '">' . $document->document_title . '</a>';
         }
@@ -557,7 +556,8 @@ if (class_exists("GFForms")) {
             
             $esigGfSubmission = $args;
             $esigGFDisplayFeed = $display_feed;
-            $doc_id = $api->document->copy($old_doc_id,$args);
+            $doc = $api->document->copyDocument($old_doc_id, $args);
+            $doc_id = $doc->get('document_id');
 
             // settings meta key for gravity form field 
 
@@ -734,8 +734,7 @@ if (class_exists("GFForms")) {
         // returns field choise 
         public function get_field_choice($name) {
 
-            // Sanitize and validate form ID
-            $form_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+            $form_id = rgar($_GET , 'id');
 
             $gravity_form = GFAPI::get_form($form_id);
 

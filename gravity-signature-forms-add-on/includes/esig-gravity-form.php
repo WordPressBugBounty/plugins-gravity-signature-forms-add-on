@@ -46,7 +46,7 @@ class ESIG_GRAVITY {
 	private function __construct() {
 
 		// Load plugin text domain
-		add_action( 'init', array($this, 'load_plugin_textdomain') );
+		add_action( 'init', array($this, 'load_plugin_textdomain'), 0 );
 	
                 add_action( 'admin_init',array($this, 'esign_gravity_after_install') );
                 

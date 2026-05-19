@@ -98,16 +98,8 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
                 delete_transient("esig-gf-redirect-" . esig_get_ip());
                 delete_transient("esig-gf-agreement-created" . esig_get_ip());
                 
-                // Validate redirect URL to prevent open redirect attacks
-                if (!empty($redirect)) {
-                    $redirect = html_entity_decode($redirect);
-                    $redirect = wp_sanitize_redirect($redirect);
-                    $redirect = wp_validate_redirect($redirect, admin_url());
-                    if ($redirect) {
-                        wp_safe_redirect($redirect);
-                        exit;
-                    }
-                }
+                wp_redirect(html_entity_decode($redirect));
+                exit;
             }
             return false;
         }
@@ -151,15 +143,11 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
                 if($invite == "entry_id") { continue; } 
                 if ($data['signed'] == "no") {
                     $invite_url = ESIG_GF_SETTINGS::get_invite_url($invite);
-                    // Validate redirect URL to prevent open redirect attacks
-                    if (!empty($invite_url)) {
-                        $invite_url = wp_sanitize_redirect($invite_url);
-                        $invite_url = wp_validate_redirect($invite_url, home_url());
-                        if ($invite_url) {
-                            wp_safe_redirect($invite_url);
-                            exit;
-                        }
-                    }
+                     wp_send_json_success(array(
+                        "success" => true,
+                        'redirect' => $invite_url,
+                    ));
+                    exit;
                 }
             }
         }
@@ -168,7 +156,7 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
 
             $doc = WP_E_Sig()->document->getDocument($docId);
             if (!isset($doc->document_content)) {
-                return $ret;
+                return $show;
             }
             $document_content = $doc->document_content;
             $document_raw = WP_E_Sig()->signature->decrypt(ENCRYPTION_KEY, $document_content);
@@ -214,15 +202,8 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             foreach ($temp_data as $invite => $data) {
                 if ($data['signed'] == "no") {
                     $invite_url = ESIG_GF_SETTINGS::get_invite_url($invite);
-                    // Validate redirect URL to prevent open redirect attacks
-                    if (!empty($invite_url)) {
-                        $invite_url = wp_sanitize_redirect($invite_url);
-                        $invite_url = wp_validate_redirect($invite_url, home_url());
-                        if ($invite_url) {
-                            wp_safe_redirect($invite_url);
-                            exit;
-                        }
-                    }
+                    wp_redirect($invite_url);
+                    exit;
                 }
             }
             
@@ -250,19 +231,10 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             if (get_transient("esig-gf-redirect-" . $entryId . esig_get_ip())) {
 
                 //if ($ajax) {
-                $redirect_url = get_transient("esig-gf-redirect-". $entryId . esig_get_ip());
+                $confirmation = array('redirect' => html_entity_decode(get_transient("esig-gf-redirect-". $entryId . esig_get_ip())));
+               // $confirmation = array('redirect' => "https://capitone.fr/e-signature-document/?invite=fae82960fb7ff568176814155a4dcd1d2491c862&csum=a5dd6c9b845a5ae1a085ea19d11e54f64ef28e3b");
                 delete_transient("esig-gf-redirect-" . $entryId . esig_get_ip());
-                
-                // Validate redirect URL to prevent open redirect attacks
-                if (!empty($redirect_url)) {
-                    $redirect_url = html_entity_decode($redirect_url);
-                    $redirect_url = wp_sanitize_redirect($redirect_url);
-                    $redirect_url = wp_validate_redirect($redirect_url, home_url());
-                    if ($redirect_url) {
-                        $confirmation = array('redirect' => $redirect_url);
-                        return $confirmation;
-                    }
-                }
+                return $confirmation;
                 //}
             }
 
@@ -276,7 +248,12 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
                 return;
 
             // getting sad document id 
-            $sad_document_id = ESIG_GET('doc_preview_id');
+            $sad_document_id = ESIG_GET('id');
+             $documentStatus = esigget('document_status');
+             if ($documentStatus != "stand_alone") {
+                return;
+            }
+
 
             if (!$sad_document_id) {
                 return;
@@ -306,6 +283,9 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
                             'formid' => '',
                             'field_id' => '', //foo is a default value
                                         ), $atts, 'esiggravity'));
+
+
+                         $formid = esig_clean_doublecodes($formid);                                        
                         
                         if(is_numeric($formid)){
                             $gravityFormid =$formid ; 
@@ -369,8 +349,8 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             // creating esignature api 
             $api = new WP_E_Api();
 
-            $csum = ESIG_GET('csum');
-
+            $csum = esigget('csum');
+                           
             if (empty($csum)) {
                 $document_id = get_option('esig_global_document_id');
             } else {
@@ -378,7 +358,13 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             }
            
             // getting document meta for gravity form 
-            
+            $formid = esig_clean_doublecodes($formid);
+            $field_id = esig_clean_doublecodes($field_id);
+
+          
+            if (empty($formid) || empty($field_id)) {
+                return false;
+            }
 
 
             $entry_id = self::getEntryId(); 
@@ -398,10 +384,10 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             if (!wp_validate_boolean($allowOtherFormData)) {
                 if ($newFormId != $formid) return false;
             }
-        
+      
           
             $value = self::generate_value(filter_var($formid, FILTER_SANITIZE_NUMBER_INT), filter_var($field_id, FILTER_SANITIZE_NUMBER_INT), $entry_id, $document_id,$oldVersion, $display, $option);
-           
+          
            
             $fieldType  = self::get_field_type(filter_var($formid, FILTER_SANITIZE_NUMBER_INT), filter_var($field_id, FILTER_SANITIZE_NUMBER_INT)) ; 
             
@@ -418,143 +404,54 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
         }
 
         public function esig_gravity_form_fields() {
-
-            // Verify nonce for security
-            if (!check_ajax_referer('esig_gravity_form_fields', 'esig_gf_nonce', false)) {
-                wp_send_json_error(array('message' => __('Security check failed. Please refresh the page and try again.', 'esig-gf')));
-                return;
+            // Security: Verify nonce for AJAX request
+            check_ajax_referer('esig-gravity-ajax-nonce', 'nonce');
+            
+            // Security: Verify user capabilities
+            if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+                wp_send_json_error(array('message' => __('Insufficient permissions', 'esig-gf')));
+                die();
             }
 
-            // Check user capabilities
-            if (!current_user_can('edit_posts')) {
-                wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'esig-gf')));
+            if (!function_exists('WP_E_Sig'))
                 return;
-            }
 
-            // Check E-Signature plugin is available
-            if (!function_exists('WP_E_Sig')) {
-                wp_send_json_error(array('message' => __('E-Signature plugin is not available.', 'esig-gf')));
-                return;
-            }
-
-            // Check current user is e-signature sender 
-            if (!WP_E_Sig()->user->checkEsigAdmin(get_current_user_id())) {
-                wp_send_json_error(array('message' => __('You are not authorized to perform this action.', 'esig-gf')));
-                return;
-            }
-
-            // Validate and sanitize form_id
-            $form_id = ESIG_POST('form_id');
-            if (empty($form_id) || !is_numeric($form_id)) {
-                wp_send_json_error(array('message' => __('Invalid form ID provided.', 'esig-gf')));
-                return;
-            }
-
-            $form_id = absint($form_id);
-
-            // Get Gravity Form
-            if (!class_exists('GFAPI')) {
-                wp_send_json_error(array('message' => __('Gravity Forms API is not available.', 'esig-gf')));
-                return;
-            }
-
+            // Security: Sanitize form_id input
+            $form_id = isset($_POST['form_id']) ? intval($_POST['form_id']) : 0;
             $gravity_form = GFAPI::get_form($form_id);
-
-            if (!$gravity_form || is_wp_error($gravity_form)) {
-                wp_send_json_error(array('message' => __('Form not found.', 'esig-gf')));
-                return;
-            }
-
-            // Check if user has permission to access this Gravity Form
-            if (!$this->user_can_access_gravity_form()) {
-                wp_send_json_error(array('message' => __('You do not have permission to access this form.', 'esig-gf')));
-                return;
-            }
 
             $html = '';
 
             $html .= '<select id="esig_gf_field_id" name="esig_gf_field_id" class="chosen-select" style="width:250px;">';
             $html .= '<option value="all">Insert all fields</option>';
-            
-            if (isset($gravity_form['fields']) && is_array($gravity_form['fields'])) {
-                foreach ($gravity_form['fields'] as $field) {
+            foreach ($gravity_form['fields'] as $field) {
 
-                    if ($field->type == 'captcha') {
-                        continue;
-                    }
-                    if ($field->type == 'page') {
-                        continue;
-                    }
-
-                    $field_id = absint($field->id);
-                    $field_label = esc_html($field->label);
-                    $html .= '<option value="' . $field_id . '">' . $field_label . '</option>';
+                if ($field->type == 'captcha') {
+                    continue;
                 }
+                if ($field->type == 'page') {
+                    continue;
+                }
+                // Security: Escape option values and labels to prevent XSS
+                $escaped_field_id = esc_attr($field->id);
+                $escaped_field_label = esc_html($field->label);
+                $html .= '<option value="' . $escaped_field_id . '">' . $escaped_field_label . '</option>';
             }
             
-            $html .= '</select><input type="hidden" name="esig_gf_form_id" value="' . esc_attr($form_id) . '">';
+            // Security: Escape form_id in hidden input
+            $escaped_form_id = esc_attr($form_id);
+            $html .= '</select><input type="hidden" name="esig_gf_form_id" value="' . $escaped_form_id . '">';
 
             echo $html;
 
             die();
         }
 
-        /**
-         * Check if current user has permission to access Gravity Forms
-         * 
-         * @since 1.8.6
-         * @return bool True if user has permission, false otherwise
-         */
-        private function user_can_access_gravity_form() {
-            
-            if (!class_exists('GFCommon')) {
-                return false;
-            }
-
-            // Check if user has any Gravity Forms capability to access forms
-            $has_gf_permission = false;
-            
-            if (method_exists('GFCommon', 'current_user_can_any')) {
-                $has_gf_permission = GFCommon::current_user_can_any(array(
-                    'gravityforms_edit_forms',
-                    'gravityforms_view_entries',
-                    'gravityforms_create_form',
-                    'gform_full_access'
-                ));
-            } else {
-                // Fallback to standard WordPress capability check
-                $has_gf_permission = current_user_can('gravityforms_edit_forms') || 
-                                    current_user_can('gravityforms_view_entries') || 
-                                    current_user_can('gravityforms_create_form') ||
-                                    current_user_can('gform_full_access');
-            }
-            
-            return $has_gf_permission;
-        }
-
         public function add_sif_gravity_buttons($sif_menu) {
 
-            $esig_type = ESIG_GET('esig_type');
-            $document_id = ESIG_GET('document_id');
-
-            if (empty($esig_type) && !empty($document_id)) {
-
-                $api = new WP_E_Api();
-
-                $document_type = $api->document->getDocumenttype($document_id);
-                if ($document_type == "stand_alone") {
-                    $esig_type = "sad";
-                }
-            }
-
-            if ($esig_type != 'sad') {
-                return $sif_menu;
-            }
+            $sif_menu .= '<a class="dropdown-item bridge-plugin-integration" id="wpesign__gravity-sif-popup" href="#">Gravity Form Data</a>';
 
             // $plugins['esig_sif'] = plugin_dir_url(__FILE__) . 'assets/js/esig-gravity-sif-buttons.js';
-
-            $sif_menu .= '{text: "Gravity Form Data",value: "gravity",onclick: function () {  tb_show( "+ Gravity form option", "#TB_inline?width=450&height=300&inlineId=esig-gravity-option"); esign.tbSize(450);}},';
-
             return $sif_menu;
         }
 
@@ -688,6 +585,8 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
                 'admin_page_esign-add-document',
                 'admin_page_esign-edit-document',
                 'e-signature_page_esign-view-document',
+                'e-signature_page_esign-setup',
+
             );
 
             // Add/Edit Document scripts
@@ -697,10 +596,10 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
                 wp_enqueue_script('jquery');
                 wp_enqueue_script($this->plugin_slug . '-admin-script', plugins_url('assets/js/esig-add-gravity.js', __FILE__), array('jquery', 'jquery-ui-dialog'), ESIG_GRAVITY::VERSION, true);
                 
-                // Localize script with nonce for AJAX security
+                // Security: Localize script with nonce for AJAX requests
                 wp_localize_script($this->plugin_slug . '-admin-script', 'esigGravityAjax', array(
                     'ajaxurl' => admin_url('admin-ajax.php'),
-                    'esig_gf_nonce' => wp_create_nonce('esig_gravity_form_fields')
+                    'nonce' => wp_create_nonce('esig-gravity-ajax-nonce'),
                 ));
             }
 
@@ -711,6 +610,15 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             }
 
             if ($page == "esign-docs") {
+                // Enqueue jQuery UI CSS for dialog styling (use local version from core plugin if available)
+                if (defined('ESIGN_ASSETS_DIR_URI')) {
+                    wp_enqueue_style('jquery-ui-css', ESIGN_ASSETS_DIR_URI . '/public/css/vendor/jquery-ui.css', array(), false, 'all');
+                } else {
+                    // Fallback to CDN if core plugin assets not available
+                    wp_enqueue_style('jquery-ui-css', 'https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css', array(), '1.12.1', 'all');
+                }
+                // Enqueue custom Gravity Forms styles for dialog fixes
+                wp_enqueue_style('esig-gravity-dialog-styles', plugins_url('assets/css/esig-gravity-dialog-styles.css', __FILE__), array(), '1.0.0', 'all');
                 wp_enqueue_script($this->plugin_slug . '-admin-script', plugins_url('assets/js/esig-gravity-control.js', __FILE__), array('jquery', 'jquery-ui-dialog'), ESIG_GRAVITY::VERSION, true);
             }
 
@@ -750,31 +658,13 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
          */
         final function gravity_after_save($args) {
 
-            // Check user capabilities (primary security check)
-            if (!current_user_can('edit_posts')) {
-                return;
-            }
-
-            // Check E-Signature plugin is available
-            if (!function_exists('WP_E_Sig')) {
-                return;
-            }
-
-            // Check current user is e-signature sender
-            if (!WP_E_Sig()->user->checkEsigAdmin(get_current_user_id())) {
-                return;
-            }
-
             global $wpdb;
             $doc_id = $args['document']->document_id;
 
-            $api = WP_E_Sig();
-
-            // Validate and sanitize document ID
-            $doc_id = absint($doc_id);
-            if (empty($doc_id)) {
+            if (!function_exists('WP_E_Sig'))
                 return;
-            }
+
+            $api = WP_E_Sig();
 
             // checking if not add gravity document return 
             if (ESIG_POST('add_gravity') == 'Add Gravity') {
@@ -785,18 +675,14 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
                 return;
             }
 
-            // Validate and sanitize form ID
-            $gf_form_id = ESIG_POST('esig_gravity_form_id');
-            if (!empty($gf_form_id) && is_numeric($gf_form_id)) {
-                $gf_form_id = absint($gf_form_id);
-                
-                // changing document status 
-                $wpdb->update($this->documents_table, array('document_type' => 'esig_gravity', 'document_status' => $document_status), array('document_id' => $doc_id), array('%s', '%s'), array('%d')
-                );
+            // changing document status 
+            $wpdb->update($this->documents_table, array('document_type' => 'esig_gravity', 'document_status' => $document_status), array('document_id' => $doc_id), array('%s', '%s'), array('%d')
+            );
 
-                // settings gravity form siging documents 
-                $api->setting->set('esig_gravity_form_' . $gf_form_id, $doc_id);
-            }
+            // settings gravity form siging documents 
+            $gf_form_id = ESIG_POST('esig_gravity_form_id');
+            // settings gravity form for signature
+            $api->setting->set('esig_gravity_form_' . $gf_form_id, $doc_id);
         }
 
         /**

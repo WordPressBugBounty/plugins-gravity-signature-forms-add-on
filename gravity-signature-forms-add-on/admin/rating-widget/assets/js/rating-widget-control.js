@@ -58,16 +58,16 @@ function gravity_hide_permanent() {
         esignRatting.parentNode.removeChild(esignRatting);
     
         var pluginName = document.getElementById('gravity-plugin-name').value;
-        
-        // Get nonce for security (using same nonce as other Gravity Forms admin actions)
-        var nonce = (typeof esigGravityAjax !== 'undefined') ? esigGravityAjax.esig_gf_nonce : '';
-        
-        // Send AJAX request with nonce
-        var postData = {
-            esig_gf_nonce: nonce
-        };
-        
+        // Security: Include nonce in AJAX request
+        // Try esigGravityRating first, then fallback to esigAjax
+        var nonce = (typeof esigGravityRating !== 'undefined' && esigGravityRating.nonce) 
+            ? esigGravityRating.nonce 
+            : (typeof esigGravityAjax !== 'undefined' && esigGravityAjax.nonce) 
+                ? esigGravityAjax.nonce 
+                : (typeof esigAjax !== 'undefined' && esigAjax._wpnonce) 
+                    ? esigAjax._wpnonce 
+                    : '';
+        var postData = { nonce: nonce };
         esigRemoteRequest("esig_gravity_ratting_widget_remove", "POST", function(pluginName){
-            // Success callback - widget already hidden from UI
         }, postData);
 } 

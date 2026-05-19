@@ -6,35 +6,96 @@
 (function($){
 
         // next step click from sif pop
-        $( "#esig-gravity-create" ).click(function() {
+        $("#esig-gravity-create").click(function() {
  
-                   var form_id= $('select[name="esig_gravity_form_id"]').val();
-                   
-                   
-                   $("#esig-gravity-form-first-step").hide();
-                  
-                   // jquery ajax to get form field with nonce for security
-                   var ajaxUrl = (typeof esigGravityAjax !== 'undefined') ? esigGravityAjax.ajaxurl : esigAjax.ajaxurl;
-                   var nonce = (typeof esigGravityAjax !== 'undefined') ? esigGravityAjax.esig_gf_nonce : '';
-                   
-                   jQuery.post(ajaxUrl, {
-                       action: "esig_gravity_form_fields",
-                       form_id: form_id,
-                       esig_gf_nonce: nonce
-                   }, function( data ){ 
-				      $("#esig-gf-field-option").html(data);
-				}, "html").fail(function(xhr, status, error) {
-				    alert('Error loading form fields. Please try again.');
-				    $("#esig-gravity-form-first-step").show();
-				    $("#esig-gf-second-step").hide();
-				});
-                   
-                   $("#esig-gf-second-step").show();                        
+                var form_id = $('select[name="esig_gravity_form_id"]').val();
+                
+                // Hide first step, show second step
+                $("#esig-gravity-form-first-step").hide();
+                $("#esig-gf-second-step").show();
+                
+                // Show loading only on first load
+                var isFirstLoad = $("#esig-gf-field-option").is(':empty') || $("#esig-gf-field-option").html().trim() === '';
+                
+                if (isFirstLoad) {
+                        $("#esig-gravity-loading-container").show();
+                }
+                
+                // AJAX to get form fields
+                // Security: Include nonce in AJAX request
+                // Try esigGravityAjax first, then fallback to esigAjax
+                var nonce = (typeof esigGravityAjax !== 'undefined' && esigGravityAjax.nonce) 
+                    ? esigGravityAjax.nonce 
+                    : (typeof esigAjax !== 'undefined' && esigAjax._wpnonce) 
+                        ? esigAjax._wpnonce 
+                        : '';
+                var ajaxUrl = (typeof esigGravityAjax !== 'undefined' && esigGravityAjax.ajaxurl) 
+                    ? esigGravityAjax.ajaxurl 
+                    : (typeof esigAjax !== 'undefined' && esigAjax.ajaxurl) 
+                        ? esigAjax.ajaxurl 
+                        : ajaxurl;
+                jQuery.post(ajaxUrl, { 
+                        action: "esig_gravity_form_fields", 
+                        form_id: form_id,
+                        nonce: nonce
+                }, function(data) {
+                        
+                        // Hide and remove loading message
+                        $("#esig-gravity-loading-container").fadeOut(200, function() {
+                                $(this).remove();
+                        });
+                        
+                        // Insert field options
+                        $("#esig-gf-field-option").html(data);
+                        
+                        // Show all elements with proper targeting and spacing
+                        setTimeout(function() {
+                                // Get DOM elements directly - use step2 button ID!
+                                var fieldOption = document.getElementById('esig-gf-field-option');
+                                var displayType = document.getElementById('select-gravity-field-display-type');
+                                var buttonWrap = document.getElementById('upload_gravity_button_step2');
+                                
+                                // Force inline styles with !important via setAttribute - add proper spacing
+                                if (fieldOption) {
+                                        fieldOption.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important; margin: 15px 0 !important;');
+                                }
+                                if (displayType) {
+                                        displayType.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important; margin: 15px 0 !important;');
+                                }
+                                if (buttonWrap) {
+                                        buttonWrap.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important; margin: 20px 0 !important;');
+                                        
+                                        // Also force the button inside visible
+                                        var button = buttonWrap.querySelector('#esig-gravity-insert');
+                                        if (button) {
+                                                button.setAttribute('style', 'display: inline-block !important; visibility: visible !important; opacity: 1 !important;');
+                                        }
+                                }
+                                
+                        }, 100);
+                        
+                        // Re-initialize chosen for the dropdowns
+                        setTimeout(function() {
+                                if (jQuery.fn.chosen) {
+                                        try {
+                                                $("#esig-gf-field-option .chosen-select").chosen('destroy');
+                                                $("#select-gravity-field-display-type .chosen-select").chosen('destroy');
+                                        } catch(e) {}
+                                        
+                                        $("#esig-gf-field-option .chosen-select").chosen();
+                                        $("#select-gravity-field-display-type .chosen-select").chosen();
+                                }
+                        }, 150);
+                        
+                }, "html").fail(function(xhr, status, error) {
+                        $("#esig-gravity-loading-container").html('<span style="color: red;">Error loading fields. Please try again.</span>');
+                });
   
         });
  
         // gravity add to document button clicked 
-        $( "#esig-gravity-insert" ).click(function() {
+        $(document).on("click", "#esig-gravity-insert", function(e) {
+                e.preventDefault();
  
                    var form_id= $('input[name="esig_gf_form_id"]').val() ;
                    
@@ -49,12 +110,12 @@
                                 let allField = $(this).val();
                                 if (allField == "all") return true;
                                 var return_text = '<p> [esiggravity formid="' + form_id + '" field_id="' + allField + '" display="' + displayType + '" ] </p>';
-                                esig_sif_admin_controls.insertContent(return_text);
+                                tinymce.get('document_content').insertContent(return_text);
                         });
                 }
                 else {
                         var return_text = ' [esiggravity formid="' + form_id + '" field_id="' + field_id + '" display="' + displayType + '" ] ';
-                        esig_sif_admin_controls.insertContent(return_text);
+                        tinymce.get('document_content').insertContent(return_text);
                 }
                    // 
                 
@@ -77,6 +138,16 @@
             
         });
         
+
+         // display  gravity form option popup
+        $("#wpesign__gravity-sif-popup").on("click", function(e) {
+
+                e.preventDefault();
+               
+                tb_show( "+ Gravity form option", "#TB_inline?inlineId=esig-gravity-option", false );
+                
+
+        });
         
 
 	

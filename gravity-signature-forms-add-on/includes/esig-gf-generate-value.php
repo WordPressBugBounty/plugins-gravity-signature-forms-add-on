@@ -45,6 +45,8 @@ if (!class_exists('ESIG_GF_VALUE')):
 
         public static function prepareDisplay($display, $value, $label) {
           
+            $display = esig_clean_doublecodes($display);
+
             if ($display == "label" && !empty($label)) {
                 return $label;
             } elseif ($display == "value" && $value !== false) {
@@ -221,22 +223,73 @@ if (!class_exists('ESIG_GF_VALUE')):
         public static function displayEditorChoice($lead,$field,$form,$display,$label){
             
                 $defaultValue = self::defaultValue($lead, $field, $form, false, 'text');
-                $defaultLabel = self::defaultValue($lead, $field, $form, true, 'text');      
+                $defaultLabel = self::defaultValue($lead, $field, $form, true, 'text');
+                
+                // Check if enableChoiceValue is enabled and handle choice mapping
+                $enableChoiceValue = esig_gf_get("enableChoiceValue", $field);
+                $choices = esig_gf_get('choices', $field);
+                
+                // If enableChoiceValue is true and we have choices, map value to text
+                if ($enableChoiceValue && is_array($choices) && !empty($defaultValue)) {
+                    foreach ($choices as $option) {
+                        $text = esig_gf_get("text", $option);
+                        $value = esig_gf_get("value", $option);
+                        if ($value == $defaultValue || $text == $defaultValue) {
+                            // Found matching choice
+                            if ($display == "label_value") {
+                                // For label_value, use field label + choice value
+                                if ($label !== false && !empty($label)) {
+                                    return $label . ": " . $value;
+                                } else {
+                                    // Fallback if label is not available
+                                    return $value;
+                                }
+                            } else {
+                                // For other displays, use prepareDisplay with choice text
+                                return self::prepareDisplay($display, $value, $text);
+                            }
+                        }
+                    }
+                }
             
-            
-                if(empty($defaultValue)){
-                    $value = $defaultLabel;
-                }else{
+                // Determine the value to display - prefer value over label
+                if(!empty($defaultValue)){
                     $value = $defaultValue;
+                } elseif(!empty($defaultLabel)){
+                    $value = $defaultLabel;
+                } else {
+                    $value = '';
                 }
                 
-                if ($display == "label" && $label !== false) {
-                    return $label;
-                } elseif ($display == "value" && $defaultValue !== false) {
-                    return $value;
-                } elseif ($display == "label_value" && !empty($defaultValue)) {                     
-                    return $label . " - " .$value;            
-                }  
+                // Use prepareDisplay for consistent formatting (handles label_value correctly)
+                // For label_value, we want: field label + choice text/value
+                $result = self::prepareDisplay($display, $value, $label);
+                
+                // If prepareDisplay didn't return anything (edge cases), fallback to manual handling
+                if ($result === null || $result === false || $result === '') {
+                    if ($display == "label" && $label !== false) {
+                        return $label;
+                    } elseif ($display == "value") {
+                        // Return the value (could be empty string if no selection)
+                        return $value !== false ? $value : '';
+                    } elseif ($display == "label_value") {
+                        // Always show field label for label_value, even if value is empty
+                        if ($label !== false) {
+                            if (!empty($value) && $value !== false) {
+                                return $label . ": " . $value;
+                            } else {
+                                // Show just the label if no value
+                                return $label;
+                            }
+                        } else {
+                            // No label available, just return value
+                            return $value !== false ? $value : '';
+                        }
+                    }
+                    return $value !== false ? $value : '';
+                }
+                
+                return $result;
         }
 
         public static function remove_map_it($result) {
@@ -313,7 +366,7 @@ if (!class_exists('ESIG_GF_VALUE')):
                 $type = "fieldDeleted";
             }
 
-            
+          
            
             switch ($type):
                 case "product":
@@ -364,6 +417,7 @@ if (!class_exists('ESIG_GF_VALUE')):
                     $value = RGFormsModel::get_lead_field_value($lead, $field);
                     $display_value = GFCommon::get_lead_field_display($field, $value, $lead['currency']);
                     $ret_value = apply_filters('gform_entry_field_value', $display_value, $field, $lead, $form);
+                   
                     return self::prepareDisplay($display, $ret_value, $label);
             endswitch;
         }

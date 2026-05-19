@@ -68,7 +68,10 @@ class esig_gravityform_document_view {
                                 	    foreach($gravity_forms as $forms)
                                 	    {
                                 	    
-                                	        $more_option_page .=	'<option value="'. $forms->id . '">'. $forms->title .'</option>';
+                                        // Security: Escape option values and labels to prevent XSS
+                                        $escaped_form_id = esc_attr($forms->id);
+                                        $escaped_form_title = esc_html($forms->title);
+                                        $more_option_page .=	'<option value="'. $escaped_form_id . '">'. $escaped_form_title .'</option>';
                                 	    }
                                 	    
                                 	    $more_option_page .='</select>
@@ -77,7 +80,7 @@ class esig_gravityform_document_view {
                          	  
                                 	    </p>
                                 	    
-                                        <p id="upload_gravity_button" align="center">
+                                        <p id="upload_gravity_button_step1" align="center">
                                            <a href="#" id="esig-gravity-create" class="button-primary esig-button-large">'.__('Next Step', 'esig').'</a>
                                          </p>
                                      
@@ -89,9 +92,17 @@ class esig_gravityform_document_view {
                                             
                                         	<div align="center" class="esig-popup-header esign-form-header">'.__('What gravity form field data would you like to insert?', 'esig').'</div>
                                             
-                                            <p id="esig-gf-field-option" align="center"> </p>
+                                            <!-- Loading message container -->
+                                            <div id="esig-gravity-loading-container" align="center" style="display:none; padding: 30px 20px; margin: 20px 0;">
+                                                <img src="'.ESIGN_ASSETS_DIR_URI.'/images/ajax-loader.gif" alt="'.__('Loading...', 'esig').'" style="display: inline-block; vertical-align: middle; margin-right: 10px;" />
+                                                <span style="font-size: 14px; color: #555;">'.__('Loading form fields...', 'esig').'</span>
+                                            </div>
                                             
-                                            <p id="select-gravity-field-display-type" align="center">
+                                            <!-- Field options will be inserted here -->
+                                            <div id="esig-gf-field-option" align="center" style="display:none;"> </div>
+                                            
+                                            <!-- Display type dropdown -->
+                                            <div id="select-gravity-field-display-type" align="center" style="display:none;">
                                 	    
                         		        <select data-placeholder="Choose a Option..." class="chosen-select" tabindex="2" id="esig-gravity-form-id" name="esig_gravity_value_display_type">
                         			     <option value="value">'.__('Select a display type', 'esig').'</option>
@@ -104,11 +115,12 @@ class esig_gravityform_document_view {
                                            
                                 	    $more_option_page .='</select>
                                 	    
-                        				</p>
+                        				</div>
                                             
-                                             <p id="upload_gravity_button" align="center">
-                                           <a href="#" id="esig-gravity-insert" class="button-primary esig-button-large">'.__('Add to Document', 'esig').'</a>
-                                         </p>
+                                            <!-- Add to Document button -->
+                                            <div id="upload_gravity_button_step2" align="center" style="display:none;">
+                                                <a href="#" id="esig-gravity-insert" class="button-primary esig-button-large">'.__('Add to Document', 'esig').'</a>
+                                            </div>
                                             
                                             </div>
                                     <!-- Gravity form second step end here -->';           
@@ -184,8 +196,10 @@ class esig_gravityform_document_view {
                             	    
                             	    foreach($gravity_forms as $forms)
                             	    {
-                            	    
-                            	        $more_option_page .=	'<option value="'. $forms['id'] . '">'. $forms['title'] .'</option>';
+                            	        // Security: Escape option values and labels to prevent XSS
+                            	        $escaped_form_id = esc_attr($forms['id']);
+                            	        $escaped_form_title = esc_html($forms['title']);
+                            	        $more_option_page .=	'<option value="'. $escaped_form_id . '">'. $escaped_form_title .'</option>';
                             	    }
                             	    
                             	    $more_option_page .='</select>

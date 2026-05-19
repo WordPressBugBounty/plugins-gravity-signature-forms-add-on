@@ -66,11 +66,16 @@ if (!class_exists('esigGravityFilters')):
                 return $content;
             }
 
+             update_option('esig_global_document_id', $new_doc_id, false);
+
             $isIntregration = esig_gf_get("integrationType", $args);
             if ($isIntregration != "esig-gravity") {
                 return $content;
             }
-            $content = $this->replace_shortcode($content, $args);        
+            $content = $this->replace_shortcode($content, $args);   
+
+            delete_option('esig_global_document_id');
+
             return $content;
         }
 
@@ -109,7 +114,9 @@ if (!class_exists('esigGravityFilters')):
                 $fieldId = is_array($matches) ? $matches[0][0] : false;
                 if (is_numeric($fieldId)) {
                     $gfValue = wp_strip_all_tags(ESIG_GF_VALUE::generate_value($formId, $fieldId, $entryId,$docId,$oldVersion,$display = "value",$option = "default",));
-                    $docTitle= str_replace("{{gravity-field-id-" . $fieldId . "}}", $gfValue, $docTitle);
+                    // Security: Escape value to prevent XSS in document title
+                    $escaped_value = esc_html($gfValue);
+                    $docTitle= str_replace("{{gravity-field-id-" . $fieldId . "}}", $escaped_value, $docTitle);
                     
                 }
             }

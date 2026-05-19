@@ -46,30 +46,30 @@ function gravity_message($esigStatus,$pluginName)
             switch ($esigStatus){
 
                 case 'wpe_inactive':
-                  return '<span class="esig-icon-esig-alert"></span><h4> ' . esc_attr($asterisk) . 'WP E-Signature is not activated. Please activate WP E-Signature to finish setting up your integration. <a class="about-button" href="'. esig_plugin_activation_link("e-signature/e-signature.php") .'">Activate WP E-Signature</a></h4>';
+                  return '<h4> ' . esc_attr($asterisk) . 'Your WP E-Signature Core plugin is not enabled. Please install and activate it to use WP E-Signature. <a class="about-button" href="'. esig_plugin_activation_link("e-signature/e-signature.php") .'">Activate WP E-Signature</a></h4>';
                   break;
                 case 'wpe_expired':
-                  return '<span class="esig-icon-esig-alert"></span><h4>' . esc_attr($asterisk) . 'You willl need to activate your WP E-Signature license to run the Gravity Forms Signature add-on.  <a class="about-button" href="admin.php?page=esign-licenses-general">Enter your license here</a> </h4>';
+                  return '<h4>' . esc_attr($asterisk) . 'You willl need to activate your WP E-Signature license to run the Gravity Forms Signature add-on.  <a class="about-button" href="admin.php?page=esign-licenses-general">Enter your license here</a> </h4>';
                   break;
                 case 'wpe_active_basic':
-                  return '<span class="esig-icon-esig-alert"></span><h4>' . esc_attr($asterisk) . 'Your WP E-Signature install is missing the Pro Add-Ons. Advanced functionality will not work without these add-ons installed. <a class="about-button" href="'. admin_url("admin.php?page=esign-addons") .'">Install Pro Add-Ons</a></h4>';
+                  return '<h4>' . esc_attr($asterisk) . 'Your WP E-Signature Add-on plugin is not installed. Please install and activate it to use WP E-Signature.  <a class="about-button" href="'. admin_url("admin.php?page=esign-addons") .'">Install Pro Add-Ons</a></h4>';
                   break;
                 case 'wpe_inactive_pro':
-                  return '<span class="esig-icon-esig-alert"></span><h4 style="font-size:0.80em;">' . esc_attr($asterisk) . 'Your WP E-Signature Pro Add-Ons are not installed. Advanced functionality will not work without these add-ons installed and enabled. <a class="about-button" href="'. esig_plugin_activation_link("e-signature-business-add-ons/e-signature-business-add-ons.php") .'">Enable Pro Add-Ons</a></h4>';
+                  return '<h4 style="font-size:0.80em;">' . esc_attr($asterisk) . 'Your WP E-Signature Add-on plugin is not enabled. Please install and activate it to use WP E-Signature. <a class="about-button" href="'. esig_plugin_activation_link("e-signature-business-add-ons/e-signature-business-add-ons.php") .'">Enable Add-Ons</a></h4>';
                   break;
                 case 'wpe_active_pro':
 
                 if (!class_exists('GFForms')) {// Notice about add-on dependent 3rd party plugin if not installed
-                   return '<span class="esig-icon-esig-alert"></span><h4>Gravity Forms plugin is not installed. Please install Gravity Form version 1.9.2 or greater - <a href="http://aprv.me/1TAspLi">Get it here now</a></h4>';
+                   return '<h4>Gravity Forms is not installed. Please install it to use the E-Signature add-on you have enabled in the Integrations tab. <a href="http://aprv.me/1TAspLi">Get it here now</a></h4>';
                   }
-                  elseif(!class_exists('ESIG_SAD_Admin')){// Notice about stand alone documents if not enabled
-                    return '<span class="esig-icon-esig-alert"></span><h4>WP E-Signature <a href="https://www.approveme.com/downloads/stand-alone-documents/?utm_source=wprepo&utm_medium=link&utm_campaign=calderaform" target="_blank">"Stand Alone Documents"</a> Add-on is not active. Please enable WP E-Signature Stand Alone Documents  <a class="about-button" href="'. admin_url("admin.php?page=esign-addons&tab=disable&esig_action=enable&plugin_url=esig-stand-alone-docs%2Fesig-sad.php&plugin_name=WP%20E-Signature%20-%20Stand%20Alone%20Documents") .'">Enable it now </a> </h4>';
+                   elseif(!class_exists('WpEsignSad\Hooks\Admin\SadAdmin')){// Notice about stand alone documents if not enabled
+                    return '<h4>WP E-Signature <a href="https://www.approveme.com/downloads/stand-alone-documents/?utm_source=wprepo&utm_medium=link&utm_campaign=calderaform" target="_blank">"Stand Alone Documents"</a> Add-on is not active. Please enable WP E-Signature Stand Alone Documents  <a class="about-button" href="'. admin_url("admin.php?page=esign-addons&tab=disable&esig_action=enable&plugin_url=esig-stand-alone-docs%2Fesig-sad.php&plugin_name=WP%20E-Signature%20-%20Stand%20Alone%20Documents") .'">Enable it now </a> </h4>';
                   }
 
                   break;
                 case 'no_wpe':
 
-                    return '<span class="esig-icon-esig-alert"></span> <h4>' . esc_attr($asterisk) . 'WP E-Signature is not installed. It is required to run the Gravity Forms Signature add-on. <span class="button-container"><a class="about-button" href="https://www.approveme.com/gravity-forms-signature-special/?utm_campaign=wprepo">Get your WP E-Signature license</a></span></h4>';
+                    return ' <h4>' . esc_attr($asterisk) . 'Your WP E-Signature Core plugin is not installed. Please install and activate it to use WP E-Signature. <span class="button-container"><a class="about-button" href="https://www.approveme.com/gravity-forms-signature-special/?utm_campaign=wprepo">Get your WP E-Signature license</a></span></h4>';
 
                     break;
                 default:

@@ -1,0 +1,58 @@
+/* jQuery UI Dialog Fixes for Almost Done Popup */
+.ui-widget-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  z-index: 100000 !important;
+}
+
+.esig-dialog {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 100001 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.esig-dialog .ui-dialog-titlebar {
+  display: none !important;
+}
+
+.esig-dialog .ui-dialog-content {
+  padding: 20px !important;
+  overflow: hidden !important;
+}
+
+#esig-gravity-almost-done {
+  background: #fff;
+  border-radius: 4px;
+}
+
+#esig-gravity-almost-done .esig-dialog-header h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+#esig-gravity-almost-done .esig-dialog-header h2 {
+  margin: 0 0 20px 0;
+  color: #666;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+#esig-gravity-almost-done .esig-updater-button {
+  margin-top: 20px;
+  text-align: center;
+}
+
+#esig-gravity-almost-done .esig-updater-button span {
+  margin: 0 5px;
+}
+

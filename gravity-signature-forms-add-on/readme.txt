@@ -3,8 +3,8 @@ Contributors: approveme
 Tags:  Electronic Signature, GravityForms, Digital Signature, e-signature, e-signatures, Sign Documents Online, Gravity Form, e-signatures, digital contracts, WordPress E-Signature, Gravity Forms Signature, Wordpress Contract Plugin
 Requires at least: 4.5
 Tested up to: 6.9
-Stable tag: 1.8.8
-Version: 1.8.8
+Stable tag: 2.0
+Version: 2.0
 
 Automatically generate a legally binding & court recognized contract from a Gravity Forms submission. Proposals. Time sheets. Contracts.
 
@@ -332,10 +332,6 @@ Renewing your license provides an additional year of support and software update
 
 Of Course. You’re welcome to ask any question you wish from our [contact form page](https://approveme.com/letschat/?utm_source=wprepo&utm_medium=link&utm_campaign=gravity-forms).
 
-= Where do I report security bugs found in this plugin? =
-
-Please report security bugs found in the source code of the Signature Add-On for Gravity Forms plugin through the [Patchstack Vulnerability Disclosure  Program](https://patchstack.com/database/vdp/54894375-1591-42d5-bc47-f1df612381f6). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
-
 == Screenshots ==
 
 **[Try a demo of the Signature Add-on for Gravity Forms Here](http://www.secure.approveme.com/demo/?utm_source=wprepo&utm_medium=link&utm_campaign=gravity-forms)**
@@ -361,13 +357,16 @@ Please report security bugs found in the source code of the Signature Add-On for
 
 == Changelog ==
 
+Version 2.0
+ADDED: Compatibility release aligned with WP E-Signature 2.0.
+
 Version 1.8.8
 ADDED: Security bug reporting instructions in the readme file for responsible disclosure.
 FIX: Minor bugs, UI improvements, and compatibility fixes.
 
 Version 1.8.7
-ADDED: Security nonce/check for AJAX 
-ADDED : Improved security when viewing Gravity Form fields—added nonce verification, permission checks.
+ADDED: Security nonce/check for AJAX
+ADDED : Improved security when viewing Gravity Form fields—added nonce verification, permission checks
 
 Version 1.8.6
 FIX: Some minor bugs
