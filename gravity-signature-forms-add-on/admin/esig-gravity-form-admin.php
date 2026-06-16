@@ -285,7 +285,7 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
                                         ), $atts, 'esiggravity'));
 
 
-                         $formid = esig_clean_doublecodes($formid);                                        
+                         $formid = esig_gf_clean_doublecodes($formid);                                        
                         
                         if(is_numeric($formid)){
                             $gravityFormid =$formid ; 
@@ -358,8 +358,8 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             }
            
             // getting document meta for gravity form 
-            $formid = esig_clean_doublecodes($formid);
-            $field_id = esig_clean_doublecodes($field_id);
+            $formid = esig_gf_clean_doublecodes($formid);
+            $field_id = esig_gf_clean_doublecodes($field_id);
 
           
             if (empty($formid) || empty($field_id)) {

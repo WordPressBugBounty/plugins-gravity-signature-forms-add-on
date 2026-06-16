@@ -49,4 +49,15 @@ if (!function_exists('esig_gf_sanitize_init')) {
     }
 }
 
+if (!function_exists('esig_gf_clean_doublecodes')) {
+    function esig_gf_clean_doublecodes($string) {
+        if (function_exists('esig_clean_doublecodes')) {
+            return esig_clean_doublecodes($string);
+        }
+
+        $decoded = html_entity_decode($string, ENT_QUOTES | ENT_HTML5);
+        return trim($decoded, '"');
+    }
+}
+
 ?>

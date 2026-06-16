@@ -45,7 +45,7 @@ if (!class_exists('ESIG_GF_VALUE')):
 
         public static function prepareDisplay($display, $value, $label) {
           
-            $display = esig_clean_doublecodes($display);
+            $display = esig_gf_clean_doublecodes($display);
 
             if ($display == "label" && !empty($label)) {
                 return $label;
@@ -61,8 +61,8 @@ if (!class_exists('ESIG_GF_VALUE')):
         
         public static function get_product($lead, $field, $field_id, $form,$display) {
             $value = RGFormsModel::get_lead_field_value($lead, $field);
-          
-            $display_value = GFCommon::get_lead_field_display($field, $value, $lead['currency']);
+
+            $display_value = self::esig_gf_lead_field_display($field, $value, $lead);
           
             if(is_array($value)){
               $label= array_shift($value );
@@ -333,7 +333,7 @@ if (!class_exists('ESIG_GF_VALUE')):
                 return $address;
             }
 
-            $display_value = GFCommon::get_lead_field_display($field, $value, $lead['currency'],false, $displayBlock );
+            $display_value = self::esig_gf_lead_field_display($field, $value, $lead, false, $displayBlock );
             return apply_filters('gform_entry_field_value', $display_value, $field, $lead, $form);
         }
         
@@ -348,7 +348,7 @@ if (!class_exists('ESIG_GF_VALUE')):
 
         public static function defaultValue($lead, $field, $form, $use_text = false, $format = 'html') {
             $value = RGFormsModel::get_lead_field_value($lead, $field);
-            $display_value = GFCommon::get_lead_field_display($field, $value, $lead['currency'], $use_text, $format);
+            $display_value = self::esig_gf_lead_field_display($field, $value, $lead, $use_text, $format);
             return apply_filters('gform_entry_field_value', $display_value, $field, $lead, $form);
         }
 
@@ -415,7 +415,7 @@ if (!class_exists('ESIG_GF_VALUE')):
                     break;  
                 default:
                     $value = RGFormsModel::get_lead_field_value($lead, $field);
-                    $display_value = GFCommon::get_lead_field_display($field, $value, $lead['currency']);
+                    $display_value = self::esig_gf_lead_field_display($field, $value, $lead);
                     $ret_value = apply_filters('gform_entry_field_value', $display_value, $field, $lead, $form);
                    
                     return self::prepareDisplay($display, $ret_value, $label);
@@ -433,14 +433,36 @@ if (!class_exists('ESIG_GF_VALUE')):
          */
 
         public static function displayDeletedField($fieldId,$formId,$lead){
-           
+
              if(array_key_exists($fieldId,$lead)){
 
                   $fieldValue = esig_gf_get($fieldId,$lead);
-                  return $fieldValue; 
+                  return $fieldValue;
 
              }
              return false;
+        }
+
+        /**
+         * Compatibility wrapper for GFCommon::get_lead_field_display().
+         *
+         * GravityForms 2.9.29 changed the 3rd parameter from $currency (string)
+         * to $entry (array). This wrapper detects the GF version and passes the
+         * correct argument so the plugin works with both old and new GF versions.
+         *
+         * @param GF_Field $field       GravityForms field object.
+         * @param mixed    $value       Field value extracted via get_lead_field_value().
+         * @param array    $lead        Full GF entry array (contains 'currency' key for older GF).
+         * @param bool     $use_text    Whether to return text instead of HTML. Default false.
+         * @param string   $format      Output format ('html' or 'text'). Default 'html'.
+         * @return string              Formatted display value.
+         */
+        protected static function esig_gf_lead_field_display( $field, $value, $lead, $use_text = false, $format = 'html' ) {
+            if ( class_exists( 'GFCommon' ) && version_compare( GFCommon::$version, '2.9.29', '>=' ) ) {
+                return GFCommon::get_lead_field_display( $field, $value, $lead, $use_text, $format );
+            }
+            $currency = isset( $lead['currency'] ) ? $lead['currency'] : '';
+            return GFCommon::get_lead_field_display( $field, $value, $currency, $use_text, $format );
         }
 
         public static function display_value($display, $document_id,$fieldType=false) {

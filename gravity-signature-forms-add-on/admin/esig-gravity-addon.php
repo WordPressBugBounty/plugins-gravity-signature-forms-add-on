@@ -262,7 +262,8 @@ if (class_exists("GFForms")) {
                 return false;
             }
 
-            $enableReminder = ESIG_POST("_gform_setting_esig_reminder_email"); 
+            $prefix         = version_compare( GFForms::$version, '2.5', '>=' ) ? '_gform_setting_' : '_gaddon_setting_';
+            $enableReminder = ESIG_POST( $prefix . 'esig_reminder_email' );
 
             if(!$enableReminder)
             {
@@ -282,13 +283,13 @@ if (class_exists("GFForms")) {
         }
 
         public function settings_esig_reminder($field, $echo = true) {
-           
+
             $value = $this->get_setting($field['name']);
-            if(GFForms::$version < 2.5){
+            if ( version_compare( GFForms::$version, '2.5', '<' ) ) {
                 $submitType = "_gaddon_setting_";
             }
             else {
-               $submitType = "_gform_setting_"; 
+               $submitType = "_gform_setting_";
             }
             $html = esc_html__('Send the first reminder to the signer', 'esig-gf') . '<input type="text" name="' . $submitType . $field['name'] . '" maxlength="3" min="0" oninput="this.value = (!isNaN(Math.abs(this.value)) && this.value>0)?Math.abs(this.value):null" style="margin-left:1%;width:75px;" class="' . $field['class'] . '" size="' . $field['size'] . '" value="' . $value . '"> ' . __("days after the initial signing request.", "esig-gf");
             if($echo){
@@ -300,11 +301,11 @@ if (class_exists("GFForms")) {
         public function settings_esig_reminder_repeat($field, $echo = true) {
 
             $value = $this->get_setting($field['name']);
-            if(GFForms::$version < 2.5){
+            if ( version_compare( GFForms::$version, '2.5', '<' ) ) {
                 $submitType = "_gaddon_setting_";
             }
             else {
-               $submitType = "_gform_setting_"; 
+               $submitType = "_gform_setting_";
             }
             $html = esc_html__('Send the second reminder to the signer', 'esig-gf') . ' <input type="text" name="' . $submitType . $field['name'] . '" style="margin-left:1%;width:75px;" maxlength="3" min="0" oninput="this.value = (!isNaN(Math.abs(this.value)) && this.value>0)?Math.abs(this.value):null" class="' . $field['class'] . '" size="' . $field['size'] . '" value="' . $value . '"> ' . __('days after the initial signing request.', 'esig-gf');
              if($echo){
@@ -316,12 +317,12 @@ if (class_exists("GFForms")) {
         public function settings_esig_reminder_expire($field, $echo = true) {
 
             $value = $this->get_setting($field['name']);
-            
-            if(GFForms::$version < 2.5){
+
+            if ( version_compare( GFForms::$version, '2.5', '<' ) ) {
                 $submitType = "_gaddon_setting_";
             }
             else {
-               $submitType = "_gform_setting_"; 
+               $submitType = "_gform_setting_";
             }
           
             $html = esc_html__('Send the last reminder to the signer', 'esig-gf') . ' <input type="text" name="' . $submitType . $field['name'] . '" class="' . $field['class'] . '" style="margin-left:1%;width:75px;" min="0" oninput="this.value = (!isNaN(Math.abs(this.value)) && this.value>0)?Math.abs(this.value):null" maxlength="3" size="' . $field['size'] . '" value="' . $value . '"> ' . __('days after the initial signing request.', 'esig-gf');
@@ -490,7 +491,9 @@ if (class_exists("GFForms")) {
             $input_type = GFFormsModel::get_input_type($fields);
 
             if ($input_type == "name") {
-                $name_input = GFCommon::get_lead_field_display($fields, $entry, false, false, false);
+                $value      = RGFormsModel::get_lead_field_value( $entry, $fields );
+                $entry_arg  = ( class_exists( 'GFCommon' ) && version_compare( GFCommon::$version, '2.9.29', '>=' ) ) ? $entry : rgar( $entry, 'currency' );
+                $name_input = GFCommon::get_lead_field_display( $fields, $value, $entry_arg, false, 'html' );
 
                 /* $lastKey = end(array_keys($fields['inputs']));
                   foreach ($fields['inputs'] as $key =>$field) {
