@@ -5,6 +5,45 @@
 
 (function($){
 
+    /**
+     * Insert content into the document editor, handling both Visual and Code/Text modes.
+     *
+     * When the editor is in Code/Text mode tinymce.get() returns null, which
+     * causes a fatal JS error. This helper falls back to direct textarea insertion
+     * so shortcodes are always placed at the cursor position regardless of mode.
+     *
+     * @since  2.0.2
+     *
+     * @param  {string} content  Shortcode or HTML string to insert.
+     * @return {void}
+     */
+    function esigInsertContent( content ) {
+        var editor = ( typeof tinymce !== 'undefined' ) ? tinymce.get( 'document_content' ) : null;
+
+        if ( editor && ! editor.isHidden() ) {
+            // Visual (WYSIWYG) mode — use the TinyMCE API.
+            editor.insertContent( content );
+            return;
+        }
+
+        // Code/Text mode — write directly into the visible textarea.
+        var textarea = document.getElementById( 'document_content' );
+        if ( ! textarea ) {
+            return;
+        }
+
+        var start = textarea.selectionStart || 0;
+        var end   = textarea.selectionEnd   || start;
+        var text  = textarea.value          || '';
+
+        textarea.value = text.substring( 0, start ) + content + text.substring( end );
+        textarea.selectionStart = textarea.selectionEnd = start + content.length;
+        textarea.focus();
+
+        // Notify WordPress auto-save and other listeners that the content changed.
+        textarea.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+    }
+
         // next step click from sif pop
         $("#esig-gravity-create").click(function() {
  
@@ -110,12 +149,12 @@
                                 let allField = $(this).val();
                                 if (allField == "all") return true;
                                 var return_text = '<p> [esiggravity formid="' + form_id + '" field_id="' + allField + '" display="' + displayType + '" ] </p>';
-                                tinymce.get('document_content').insertContent(return_text);
+                                esigInsertContent( return_text );
                         });
                 }
                 else {
                         var return_text = ' [esiggravity formid="' + form_id + '" field_id="' + field_id + '" display="' + displayType + '" ] ';
-                        tinymce.get('document_content').insertContent(return_text);
+                        esigInsertContent( return_text );
                 }
                    // 
                 

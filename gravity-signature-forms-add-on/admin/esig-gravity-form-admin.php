@@ -349,12 +349,18 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             // creating esignature api 
             $api = new WP_E_Api();
 
-            $csum = esigget('csum');
-                           
-            if (empty($csum)) {
-                $document_id = get_option('esig_global_document_id');
+            $csum = esigget( 'csum' );
+
+            if ( ! empty( $csum ) ) {
+                $document_id = $api->document->document_id_by_csum( $csum );
             } else {
-                $document_id = $api->document->document_id_by_csum($csum);
+                // esigget() decodes ?wpesig= tokens, ?did= checksums, and ?document_id= params —
+                // all request-scoped. get_option() is a shared DB value that can hold a stale ID
+                // from a previous request, so we treat it as a last resort only.
+                $document_id = esigget( 'document_id' );
+                if ( empty( $document_id ) ) {
+                    $document_id = get_option( 'esig_global_document_id' );
+                }
             }
            
             // getting document meta for gravity form 
