@@ -484,31 +484,48 @@ if (class_exists("GFForms")) {
             return false;
         }
 
-        public function esig_get_signer_name($form_id, $field_id, $entry) {
+        /**
+         * Retrieve the signer's name from a Gravity Forms entry field.
+         *
+         * For Name-type fields the value is assembled via GF_Field::get_value_entry_detail()
+         * using a version-aware call (GF 2.9.29 changed the 2nd parameter from a currency
+         * string to the full entry array; GFCommon::get_lead_field_display() was deprecated
+         * in GF 2.9.31). For all other field types the raw entry value is returned directly.
+         *
+         * @since 2.0.3
+         *
+         * @param int   $form_id  Gravity Forms form ID.
+         * @param int   $field_id Gravity Forms field ID mapped to the signer name.
+         * @param array $entry    Full GF entry array.
+         *
+         * @return string|false Formatted signer name, or false when the field is not found.
+         */
+        public function esig_get_signer_name( $form_id, $field_id, $entry ) {
 
-            $forms = GFAPI::get_form($form_id);
-            $fields = GFFormsModel::get_field($forms, $field_id);
-            $input_type = GFFormsModel::get_input_type($fields);
+            $forms  = GFAPI::get_form( $form_id );
+            $fields = GFFormsModel::get_field( $forms, $field_id );
 
-            if ($input_type == "name") {
-                $value      = RGFormsModel::get_lead_field_value( $entry, $fields );
-                $entry_arg  = ( class_exists( 'GFCommon' ) && version_compare( GFCommon::$version, '2.9.29', '>=' ) ) ? $entry : rgar( $entry, 'currency' );
-                $name_input = GFCommon::get_lead_field_display( $fields, $value, $entry_arg, false, 'html' );
-
-                /* $lastKey = end(array_keys($fields['inputs']));
-                  foreach ($fields['inputs'] as $key =>$field) {
-                  if ($key === $lastKey) {
-                  $name_input .= $entry[$field['id']];
-                  }
-                  else {
-                  $name_input .= $entry[$field['id']]." ";
-                  }
-                  } */
-
-                return $name_input;
-            } else {
-                return $entry[$field_id];
+            if ( ! $fields instanceof GF_Field ) {
+                return false;
             }
+
+            $input_type = GFFormsModel::get_input_type( $fields );
+
+            if ( 'name' === $input_type ) {
+                $value = GFFormsModel::get_lead_field_value( $entry, $fields );
+
+                if ( class_exists( 'GFCommon' ) && version_compare( GFCommon::$version, '2.9.29', '>=' ) ) {
+                    // GF 2.9.29+ expects the full entry array; GFCommon::get_lead_field_display()
+                    // was deprecated in 2.9.31 so call get_value_entry_detail() directly.
+                    return $fields->get_value_entry_detail( $value, $entry, false, 'html' );
+                }
+
+                // GF < 2.9.29 — pass currency string as 2nd parameter.
+                $currency = rgar( $entry, 'currency' );
+                return $fields->get_value_entry_detail( $value, $currency, false, 'html' );
+            }
+
+            return isset( $entry[ $field_id ] ) ? $entry[ $field_id ] : false;
         }
 
         private function enableReminder($feed,$docId)

@@ -68,8 +68,8 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
 
             
             
-            add_filter('gform_confirmation', array($this, 'reroute_confirmation'), 19, 4);
-            
+            add_filter('gform_confirmation', array($this, 'reroute_confirmation'), 20, 4);
+
             add_filter('gform_confirmation', array($this, 'paypal_reroute_confirmation'), 19, 4);
 
             add_filter('show_sad_invite_link', array($this, 'show_sad_invite_link'), 10, 3);
@@ -210,35 +210,98 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             return $confirmation;
         }
 
-        public function reroute_confirmation($confirmation, $form, $lead, $ajax) {
+        /**
+         * Override the GF confirmation with the e-signature redirect URL.
+         *
+         * Runs at priority 20 so it executes after payment add-ons such as
+         * GF Stripe (which hook gform_confirmation at priority 20 or lower).
+         * The redirect URL is resolved in two steps:
+         *
+         *   1. IP-keyed transient — set by process_feed() in the same request;
+         *      works for every standard and inline-payment flow.
+         *   2. Database fallback — looks up the document that process_feed()
+         *      already wrote to the DB via esig_gravity_entry_id meta; used
+         *      when the transient is unavailable (e.g. Stripe 3D Secure causes
+         *      a cross-request flow where the user's IP may change between the
+         *      feed run and the confirmation).
+         *
+         * @since 2.0.4
+         *
+         * @param array|string $confirmation GF confirmation value.
+         * @param array        $form         GF form array.
+         * @param array        $lead         GF entry array.
+         * @param bool         $ajax         Whether the form was submitted via AJAX.
+         *
+         * @return array|string Modified confirmation with redirect, or original.
+         */
+        public function reroute_confirmation( $confirmation, $form, $lead, $ajax ) {
 
-            if(!function_exists("WP_E_Sig"))
-            {
-                return false;
-            }
-
-            $temp_data = ESIG_GF_SETTINGS::get_temp_settings();
-
-            $postWcFormId = rgget('wc_gforms_form_id', $_POST);
-            $formId = rgget('form_id', $lead);
-            $entryId = rgget('id',$lead);
-            //$wcAgreements = get_transient("esig-gf-wc-agreement" . esig_get_ip());
-            
-            if ($postWcFormId == $formId) {
+            if ( ! function_exists( 'WP_E_Sig' ) ) {
                 return $confirmation;
             }
 
-            if (get_transient("esig-gf-redirect-" . $entryId . esig_get_ip())) {
+            $post_wc_form_id = rgget( 'wc_gforms_form_id', $_POST );
+            $form_id         = rgget( 'form_id', $lead );
+            $entry_id        = absint( rgget( 'id', $lead ) );
 
-                //if ($ajax) {
-                $confirmation = array('redirect' => html_entity_decode(get_transient("esig-gf-redirect-". $entryId . esig_get_ip())));
-               // $confirmation = array('redirect' => "https://capitone.fr/e-signature-document/?invite=fae82960fb7ff568176814155a4dcd1d2491c862&csum=a5dd6c9b845a5ae1a085ea19d11e54f64ef28e3b");
-                delete_transient("esig-gf-redirect-" . $entryId . esig_get_ip());
+            // Skip — WooCommerce GForms handles its own redirect.
+            if ( $post_wc_form_id == $form_id ) {
                 return $confirmation;
-                //}
             }
 
-            return $confirmation;
+            if ( ! $entry_id ) {
+                return $confirmation;
+            }
+
+            // Step 1: IP-keyed transient (same-request, standard flow).
+            $transient_key  = 'esig-gf-redirect-' . $entry_id . esig_get_ip();
+            $redirect_url   = get_transient( $transient_key );
+
+            if ( $redirect_url ) {
+                delete_transient( $transient_key );
+                return array( 'redirect' => html_entity_decode( $redirect_url ) );
+            }
+
+            // Step 2: DB fallback (cross-request flow, e.g. Stripe 3D Secure).
+            // process_feed() already saved esig_gravity_entry_id on the document;
+            // look it up directly — no IP or TTL dependency.
+            $doc_id = WP_E_Sig()->meta->metadata_by_keyvalue( 'esig_gravity_entry_id', $entry_id );
+
+            if ( ! $doc_id ) {
+                return $confirmation;
+            }
+
+            // Only redirect when the signing logic for this form is set to redirect.
+            $feeds = GFAPI::get_feeds( 'esig-gf', $form_id );
+            $is_redirect_feed = false;
+
+            if ( is_array( $feeds ) ) {
+                foreach ( $feeds as $feed ) {
+                    if ( isset( $feed['meta']['esign_gf_logic'] ) && 'redirect' === $feed['meta']['esign_gf_logic'] && ! empty( $feed['is_active'] ) ) {
+                        $is_redirect_feed = true;
+                        break;
+                    }
+                }
+            }
+
+            if ( ! $is_redirect_feed ) {
+                return $confirmation;
+            }
+
+            $invite_hash = WP_E_Sig()->invite->getInviteHash_By_documentID( $doc_id );
+
+            if ( ! $invite_hash ) {
+                return $confirmation;
+            }
+
+            $doc          = WP_E_Sig()->document->getDocument( $doc_id );
+            $redirect_url = WP_E_Sig()->invite->get_invite_url( $invite_hash, $doc->document_checksum );
+
+            if ( ! $redirect_url ) {
+                return $confirmation;
+            }
+
+            return array( 'redirect' => html_entity_decode( $redirect_url ) );
         }
         
 

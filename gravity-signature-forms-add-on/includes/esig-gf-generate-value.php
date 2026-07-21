@@ -444,25 +444,39 @@ if (!class_exists('ESIG_GF_VALUE')):
         }
 
         /**
-         * Compatibility wrapper for GFCommon::get_lead_field_display().
+         * Compatibility wrapper for field value display across GravityForms versions.
          *
-         * GravityForms 2.9.29 changed the 3rd parameter from $currency (string)
-         * to $entry (array). This wrapper detects the GF version and passes the
-         * correct argument so the plugin works with both old and new GF versions.
+         * GravityForms 2.9.29 changed the 2nd parameter of GF_Field::get_value_entry_detail()
+         * from $currency (string) to $entry (array). GFCommon::get_lead_field_display() was
+         * deprecated in GF 2.9.31 — this wrapper calls get_value_entry_detail() directly on
+         * the field object, routing the correct argument type based on the installed GF version
+         * so the plugin works with both old and new GF versions without triggering deprecation
+         * notices.
          *
-         * @param GF_Field $field       GravityForms field object.
-         * @param mixed    $value       Field value extracted via get_lead_field_value().
-         * @param array    $lead        Full GF entry array (contains 'currency' key for older GF).
-         * @param bool     $use_text    Whether to return text instead of HTML. Default false.
-         * @param string   $format      Output format ('html' or 'text'). Default 'html'.
-         * @return string              Formatted display value.
+         * @since 2.0.3
+         * @access protected
+         *
+         * @param GF_Field|array $field    GravityForms field object (or legacy array).
+         * @param mixed          $value    Field value extracted via get_lead_field_value().
+         * @param array          $lead     Full GF entry array (contains 'currency' key for older GF).
+         * @param bool           $use_text Whether to return text instead of HTML. Default false.
+         * @param string         $format   Output format ('html' or 'text'). Default 'html'.
+         *
+         * @return string|false Formatted display value, or false on failure.
          */
         protected static function esig_gf_lead_field_display( $field, $value, $lead, $use_text = false, $format = 'html' ) {
-            if ( class_exists( 'GFCommon' ) && version_compare( GFCommon::$version, '2.9.29', '>=' ) ) {
-                return GFCommon::get_lead_field_display( $field, $value, $lead, $use_text, $format );
+            if ( ! $field instanceof GF_Field ) {
+                $field = GF_Fields::create( $field );
             }
+
+            if ( class_exists( 'GFCommon' ) && version_compare( GFCommon::$version, '2.9.29', '>=' ) ) {
+                // GF 2.9.29+ expects the full entry array as the 2nd parameter.
+                return $field->get_value_entry_detail( $value, $lead, $use_text, $format );
+            }
+
+            // GF < 2.9.29 expects a currency string as the 2nd parameter.
             $currency = isset( $lead['currency'] ) ? $lead['currency'] : '';
-            return GFCommon::get_lead_field_display( $field, $value, $currency, $use_text, $format );
+            return $field->get_value_entry_detail( $value, $currency, $use_text, $format );
         }
 
         public static function display_value($display, $document_id,$fieldType=false) {
