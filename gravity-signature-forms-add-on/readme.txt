@@ -3,8 +3,8 @@ Contributors: approveme
 Tags:  Electronic Signature, GravityForms, Digital Signature, e-signature, e-signatures, Sign Documents Online, Gravity Form, e-signatures, digital contracts, WordPress E-Signature, Gravity Forms Signature, Wordpress Contract Plugin
 Requires at least: 4.5
 Tested up to: 7.0
-Stable tag: 2.0.3
-Version: 2.0.3
+Stable tag: 2.0.4
+Version: 2.0.4
 
 Automatically generate a legally binding & court recognized contract from a Gravity Forms submission. Proposals. Time sheets. Contracts.
 
@@ -360,6 +360,13 @@ Please report security bugs found in the source code of the Signature Add-On for
 **[Try a demo of the Signature Add-on for Gravity Forms Here](http://www.secure.approveme.com/demo/?utm_source=wprepo&utm_medium=link&utm_campaign=gravity-forms)**
 
 == Changelog ==
+Version 2.0.4
+FIX: Block owner email from being accepted as a signer via gform_validation when Auto-Add is enabled.
+FIX: Only list published Stand Alone Documents in the GF feed settings dropdown.
+FIX: Skip feed processing when the linked WordPress page is trashed or drafted.
+FIX: Omit conditionally hidden Gravity Forms fields from signed documents.
+FIX: Preserve the GF feed dropdown selection for trashed Stand Alone Documents.
+
 Version 2.0.3
 FIX: Migrated deprecated Gravity Forms entry field display handling to the current field API.
 FIX: Gravity Forms Stripe confirmation redirects with an adjusted priority and database fallback.

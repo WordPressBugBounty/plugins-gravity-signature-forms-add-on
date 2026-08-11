@@ -15,6 +15,24 @@ if (!class_exists('ESIG_GF_VALUE')):
             return self::$entryId;
         }
 
+        /**
+         * Generate a Gravity Forms field value for use in a document shortcode.
+         *
+         * Fields hidden by Gravity Forms conditional logic at entry submission are
+         * intentionally omitted, regardless of the configured display format.
+         *
+         * @since 2.0.3
+         *
+         * @param int    $formid     Gravity Forms form ID.
+         * @param int    $field_id   Gravity Forms field ID.
+         * @param int    $entry_id   Gravity Forms entry ID.
+         * @param int    $docId      E-Signature document ID.
+         * @param bool   $oldVersion Whether the document uses the legacy field renderer.
+         * @param string $display    Field display format. Default 'value'.
+         * @param string $option     Field display option. Default 'default'.
+         *
+         * @return string|bool The field value, or false when it cannot be displayed.
+         */
         public static function generate_value($formid, $field_id, $entry_id, $docId,$oldVersion,$display = "value", $option = "default") {
 
             $form = GFAPI::get_form($formid);
@@ -28,6 +46,10 @@ if (!class_exists('ESIG_GF_VALUE')):
             }
 
             if (!$lead) {
+                return false;
+            }
+
+            if (GFFormsModel::is_field_hidden($form, $field, array(), $lead)) {
                 return false;
             }
             

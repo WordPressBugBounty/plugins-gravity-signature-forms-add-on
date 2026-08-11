@@ -61,6 +61,159 @@ if (class_exists("GFForms")) {
             return self::$_instance;
         }
 
+        /**
+         * Initialize the add-on.
+         *
+         * Registers custom hooks on top of the parent GFFeedAddOn initialization,
+         * including the owner-email collision validation for form submissions.
+         *
+         * @since 2.0.4
+         *
+         * @return void
+         */
+        public function init() {
+            parent::init();
+            add_filter( 'gform_validation', array( $this, 'validate_owner_email_collision' ) );
+        }
+
+        /**
+         * Validate that the signer email does not match the Auto-Add My Signature owner email.
+         *
+         * When a Gravity Form is linked to a Stand-Alone Document that has Auto-Add My
+         * Signature enabled, the owner's signature is automatically joined to every copy
+         * of that template. Allowing the owner's email as the signer email would produce a
+         * broken duplicate-signing state — the copied document would appear fully signed
+         * immediately and the invitee would never receive a real signing step.
+         *
+         * This validation fires via `gform_validation` BEFORE the form entry is saved, so
+         * no orphaned document copies or GF entries are created when a collision is detected.
+         * The email field is flagged with an inline validation error visible to the submitter.
+         *
+         * @since 2.0.4
+         *
+         * @param array $validation_result {
+         *     GF validation context array passed by the `gform_validation` filter.
+         *
+         *     @type bool  $is_valid Whether the form passed all validation checks.
+         *     @type array $form     The current Gravity Forms form array, including fields.
+         * }
+         *
+         * @return array Modified $validation_result with `is_valid` set to false and the
+         *               configured email field flagged when an owner email collision is detected.
+         *               Returned unchanged when no collision exists or prerequisites are missing.
+         */
+        public function validate_owner_email_collision( $validation_result ) {
+
+            if ( ! function_exists( 'WP_E_Sig' ) || ! class_exists( 'esig_sad_document' ) ) {
+                return $validation_result;
+            }
+
+            $form    = $validation_result['form'];
+            $form_id = absint( $form['id'] );
+
+            // Fetch all active GF feeds for this form that belong to this add-on.
+            $feeds = GFAPI::get_feeds( null, $form_id, $this->_slug, true );
+            if ( empty( $feeds ) || ! is_array( $feeds ) ) {
+                return $validation_result;
+            }
+
+            $sad = new esig_sad_document();
+            $api = WP_E_Sig();
+
+            foreach ( $feeds as $feed ) {
+
+                // Skip inactive feeds.
+                if ( empty( $feed['is_active'] ) ) {
+                    continue;
+                }
+
+                $sad_page_id = rgar( $feed['meta'], 'esig_gf_sad' );
+                if ( ! $sad_page_id ) {
+                    continue;
+                }
+
+                $document_id = $sad->get_sad_id( $sad_page_id );
+                if ( ! $document_id ) {
+                    continue;
+                }
+
+                // Only act on stand-alone documents.
+                if ( 'stand_alone' !== $api->document->getStatus( $document_id ) ) {
+                    continue;
+                }
+
+                /*
+                 * Auto-Add My Signature email-collision guard (TRL-1607).
+                 *
+                 * Check if Auto-Add My Signature is enabled on the linked template.
+                 * If the submitted signer email matches the auto-add owner email, block
+                 * the form submission with an inline field validation error before any
+                 * document copy or GF entry is created.
+                 *
+                 * @since 2.0.4
+                 */
+                $auto_add_enabled      = $api->meta->get( $document_id, 'auto_add_signature' );
+                $auto_add_signature_id = $api->meta->get( $document_id, 'auto_add_signature_id' );
+
+                if ( ! $auto_add_enabled || ! $auto_add_signature_id ) {
+                    continue;
+                }
+
+                // Resolve the auto-add owner's email via the signature model.
+                if ( ! class_exists( '\WpEsignature\Models\Signature' ) ) {
+                    continue;
+                }
+
+                $signature_model  = \WpEsignature\Models\Signature::getInstance();
+                $auto_add_user_id = $signature_model->getuserid_by_signature_id( $auto_add_signature_id );
+
+                if ( ! $auto_add_user_id ) {
+                    continue;
+                }
+
+                $auto_add_user = $api->user->getUserByID( $auto_add_user_id );
+
+                if ( ! $auto_add_user || empty( $auto_add_user->user_email ) ) {
+                    continue;
+                }
+
+                // Get the submitted value from the configured email field.
+                $email_field_id  = rgar( $feed['meta'], 'esig_signer_email' );
+                $submitted_email = rgpost( 'input_' . $email_field_id );
+
+                if ( empty( $submitted_email ) ) {
+                    continue;
+                }
+
+                // Case-insensitive comparison — email addresses are not case-sensitive.
+                if ( strtolower( trim( $auto_add_user->user_email ) ) !== strtolower( trim( $submitted_email ) ) ) {
+                    continue;
+                }
+
+                // Collision detected: mark the email field as failed with an inline error.
+                $validation_result['is_valid'] = false;
+
+                foreach ( $form['fields'] as &$field ) {
+                    if ( (int) $field->id === (int) $email_field_id ) {
+                        $field->failed_validation  = true;
+                        $field->validation_message = esc_html__(
+                            'This email address belongs to the document owner and cannot be used as a signer.',
+                            'esig-gf'
+                        );
+                        break;
+                    }
+                }
+                unset( $field );
+
+                $validation_result['form'] = $form;
+
+                // One collision is enough — stop checking further feeds.
+                return $validation_result;
+            }
+
+            return $validation_result;
+        }
+
         public function feed_settings_fields() {
 
             return array(
@@ -428,16 +581,25 @@ if (class_exists("GFForms")) {
 
             $sad_page_id = $feed['meta']['esig_gf_sad'];
 
-            if (!class_exists('esig_sad_document'))
+            if ( ! class_exists( 'esig_sad_document' ) ) {
                 return false;
+            }
+
+            // Guard: skip if the linked WordPress page is trashed, drafted, or
+            // deleted. Published, private, and password-protected pages are all
+            // allowed. See TRL-1621.
+            $page_status = get_post_status( absint( $sad_page_id ) );
+            if ( false === $page_status || 'trash' === $page_status || 'draft' === $page_status ) {
+                return false;
+            }
 
             $sad = new esig_sad_document();
 
-            $document_id = $sad->get_sad_id($sad_page_id);
-            
-            $docStatus  = WP_E_Sig()->document->getStatus($document_id);
-            
-            if($docStatus !="stand_alone"){
+            $document_id = $sad->get_sad_id( $sad_page_id );
+
+            $docStatus = WP_E_Sig()->document->getStatus( $document_id );
+
+            if ( 'stand_alone' !== $docStatus ) {
                 return false;
             }
             
@@ -704,53 +866,89 @@ if (class_exists("GFForms")) {
             return $choices;
         }
 
-        // gettings sad documents 
+        /**
+         * Build the list of Stand Alone Document pages for the feed settings dropdown.
+         *
+         * Includes published Stand Alone Documents, as well as trashed or draft documents/pages
+         * (labeled with status) so that existing feed selections are not lost when a document
+         * or page is moved to trash. Permanently deleted orphans are excluded unless they
+         * match the currently selected feed setting. See TRL-1617, TRL-1620.
+         *
+         * @since  2.0.4
+         * @access private
+         *
+         * @return array GF feed settings choices array.
+         */
         private function get_sad_documents() {
 
-            // 
-            if (!function_exists('WP_E_Sig'))
-                return;
+            if ( ! function_exists( 'WP_E_Sig' ) ) {
+                return array();
+            }
+
+            if ( ! class_exists( 'esig_sad_document' ) ) {
+                return array();
+            }
 
             $api = WP_E_Sig();
-
-
-            if (!class_exists('esig_sad_document'))
-                return;
-
             $sad = new esig_sad_document();
 
             $sad_pages = $sad->esig_get_sad_pages();
 
+            $choices   = array();
             $choices[] = array(
-                'label' => "Please select a stand alone document",
-                'value' => "",
+                'label' => __( 'Please select a stand alone document', 'esig-gf' ),
+                'value' => '',
             );
 
+            if ( empty( $sad_pages ) || ! is_array( $sad_pages ) ) {
+                return $choices;
+            }
 
-            foreach ($sad_pages as $page) {
-                $document_status = $api->document->getStatus($page->document_id);
-                if ($document_status != 'trash') {
-                    $pageStatus = get_post_status($page->page_id);
+            $current_sad_id = absint( $this->get_setting( 'esig_gf_sad' ) );
 
-                    // if page status is empty continue
-                    if (empty($pageStatus)) {
-                        continue;
-                    }
+            foreach ( $sad_pages as $page ) {
 
+                $page_id     = absint( $page->page_id );
+                $document_id = absint( $page->document_id );
 
-                    if ($pageStatus != 'trash' && $pageStatus != 'draft') {
-                        $choices[] = array(
-                            'label' => get_the_title($page->page_id),
-                            'value' => $page->page_id,
-                        );
-                    }
-                 
+                if ( ! $page_id && ! $document_id ) {
+                    continue;
                 }
+
+                $document_status = $document_id ? $api->document->getStatus( $document_id ) : null;
+                $page_status     = $page_id ? get_post_status( $page_id ) : false;
+                $is_current      = ( $current_sad_id > 0 && $page_id === $current_sad_id );
+
+                // Permanently deleted document record and non-existent post:
+                // skip unless this is the feed's currently selected setting.
+                if ( empty( $document_status ) && false === $page_status && ! $is_current ) {
+                    continue;
+                }
+
+                $title = get_the_title( $page_id );
+                if ( empty( $title ) ) {
+                    $title = __( 'Document #', 'esig-gf' ) . $document_id;
+                }
+
+                // Determine appropriate label suffix based on status.
+                if ( 'trash' === $page_status || 'trash' === $document_status ) {
+                    $label = $title . ' ' . __( '(Trashed)', 'esig-gf' );
+                } elseif ( 'draft' === $page_status || 'draft' === $document_status ) {
+                    $label = $title . ' ' . __( '(Draft)', 'esig-gf' );
+                } elseif ( empty( $document_status ) || false === $page_status ) {
+                    $label = $title . ' ' . __( '(Deleted)', 'esig-gf' );
+                } else {
+                    $label = $title;
+                }
+
+                $choices[] = array(
+                    'label' => $label,
+                    'value' => $page_id,
+                );
             }
 
             return $choices;
         }
-
         // returns field choise 
         public function get_field_choice($name) {
 

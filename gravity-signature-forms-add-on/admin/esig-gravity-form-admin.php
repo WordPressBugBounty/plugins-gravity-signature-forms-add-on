@@ -396,6 +396,21 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             return $msg;
         }
 
+        /**
+         * Render the [esiggravity] shortcode and return the Gravity Forms field value.
+         *
+         * Resolves the current document ID using the following priority:
+         *   1. `csum` query param → document_id_by_csum().
+         *   2. `document_id` query param via esigget().
+         *   3. Static rendering stack via Document::current_document_id() (TRL-1608/TRL-1609).
+         *   4. Defensive get_option() fallback for older core versions.
+         *
+         * @since 2.0.3
+         *
+         * @param array $atts Shortcode attributes: formid, field_id, display, option.
+         *
+         * @return string|false Rendered field value, or false on invalid/missing data.
+         */
         public function render_shortcode_esiggravity($atts) {
 
            
@@ -417,10 +432,18 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             if ( ! empty( $csum ) ) {
                 $document_id = $api->document->document_id_by_csum( $csum );
             } else {
-                // esigget() decodes ?wpesig= tokens, ?did= checksums, and ?document_id= params —
-                // all request-scoped. get_option() is a shared DB value that can hold a stale ID
-                // from a previous request, so we treat it as a last resort only.
+                // Resolution priority (all request-scoped or stack-scoped):
+                // 1. ?document_id= query param via esigget() — covers most frontend flows.
+                // 2. Static rendering stack (TRL-1608/TRL-1609) — set by push_document_context()
+                //    during clone-render; resolves the correct ID without a shared DB write.
+                // 3. get_option() defensive fallback — only reached on older core versions that
+                //    do not yet expose Document::current_document_id().
                 $document_id = esigget( 'document_id' );
+
+                if ( empty( $document_id ) && class_exists( '\WpEsignature\Models\Document' ) && method_exists( '\WpEsignature\Models\Document', 'current_document_id' ) ) {
+                    $document_id = \WpEsignature\Models\Document::current_document_id();
+                }
+
                 if ( empty( $document_id ) ) {
                     $document_id = get_option( 'esig_global_document_id' );
                 }

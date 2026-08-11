@@ -51,30 +51,42 @@ if (!class_exists('esigGravityFilters')):
         }
 
         /**
-         *  Render document to replace shortcodes 
-         *  @since 1.5.6.8
-         *  @param string $content | content of document which will be replaced 
-         *  @param int $new_doc_id | new document after cloning existing agreement. 
-         *  @param string $documentType | Type of document  
-         *  @param array $args | Different types of argument pass 
-         *  @return {string}  | Return replace content of shortcodes.
+         * Render document content by replacing Gravity Forms shortcodes with entry values.
+         *
+         * Sets the request-scoped document context via the static stack introduced in
+         * TRL-1608 instead of the shared `esig_global_document_id` DB option, which
+         * was a concurrency hazard under concurrent signings (TRL-1609).
+         *
+         * @since 2.0.3
+         *
+         * @param string $content      Document content to process.
+         * @param int    $new_doc_id   Document ID of the cloned agreement.
+         * @param string $documentType Document type identifier.
+         * @param array  $args         Additional context arguments.
+         *
+         * @return string Document content with shortcodes replaced, or original on early return.
          */
+        public function document_content_render( $content, $new_doc_id, $documentType, $args ) {
 
-        public function document_content_render($content, $new_doc_id, $documentType, $args) {
-
-            if ($documentType != 'stand_alone') {
+            if ( $documentType !== 'stand_alone' ) {
                 return $content;
             }
 
-             update_option('esig_global_document_id', $new_doc_id, false);
-
-            $isIntregration = esig_gf_get("integrationType", $args);
-            if ($isIntregration != "esig-gravity") {
-                return $content;
+            // Push the document ID onto the request-scoped static stack so that
+            // shortcode handlers (render_shortcode_esiggravity) can resolve it via
+            // Document::current_document_id() without touching the shared DB option.
+            if ( class_exists( '\WpEsignature\Models\Document' ) ) {
+                \WpEsignature\Models\Document::push_document_context( $new_doc_id );
             }
-            $content = $this->replace_shortcode($content, $args);   
 
-            delete_option('esig_global_document_id');
+            $isIntregration = esig_gf_get( 'integrationType', $args );
+            if ( $isIntregration === 'esig-gravity' ) {
+                $content = $this->replace_shortcode( $content, $args );
+            }
+
+            if ( class_exists( '\WpEsignature\Models\Document' ) ) {
+                \WpEsignature\Models\Document::pop_document_context();
+            }
 
             return $content;
         }
