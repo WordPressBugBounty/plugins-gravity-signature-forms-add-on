@@ -122,6 +122,25 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             }
         }
 
+        /**
+         * Mark the signed invite as complete and redirect to the next unsigned
+         * agreement in a multi-document Gravity Forms submission.
+         *
+         * Uses the posted `inviteHash` because a document may contain multiple
+         * invitations and resolving an arbitrary invite by document ID can select
+         * the wrong signer. The hash is verified against the current document before
+         * it is used.
+         *
+         * This signing flow intentionally does not use a nonce because cached signing
+         * pages may contain stale nonces. Core authorizes the request using the
+         * invitation hash instead (TRL-1514).
+         *
+         * @since 2.0.5
+         *
+         * @param array $args Hook payload from `esig_signature_loaded`.
+         *
+         * @return false|void
+         */
         final function after_sign_check_next_agreement($args) {
 
             $document_id = $args['document_id'];
@@ -133,7 +152,17 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
                 return false;
             }
 
-            $invite_hash = WP_E_Sig()->invite->getInviteHash_By_documentID($document_id);
+            $invite_hash = isset($_POST['inviteHash']) ? sanitize_text_field(wp_unslash($_POST['inviteHash'])) : '';
+
+            // Confirm the posted invite actually belongs to this document before
+            // trusting it, so an unrelated or forged inviteHash can't be used to
+            // mark someone else's invitation as signed. No fallback lookup by
+            // document ID: a document can carry more than one invitation, so
+            // guessing one would reintroduce the bug this fixes.
+            if (!$invite_hash || (int) WP_E_Sig()->invite->getdocumentid_By_invitehash($invite_hash) !== (int) $document_id) {
+                return false;
+            }
+
             ESIG_GF_SETTINGS::save_esig_gf_meta($invite_hash, "signed", "yes");
 
             $temp_data = ESIG_GF_SETTINGS::get_temp_settings();
