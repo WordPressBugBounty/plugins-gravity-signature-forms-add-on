@@ -3,8 +3,8 @@ Contributors: approveme
 Tags:  Electronic Signature, GravityForms, Digital Signature, e-signature, e-signatures, Sign Documents Online, Gravity Form, e-signatures, digital contracts, WordPress E-Signature, Gravity Forms Signature, Wordpress Contract Plugin
 Requires at least: 4.5
 Tested up to: 7.0
-Stable tag: 2.0.5
-Version: 2.0.5
+Stable tag: 2.0.6
+Version: 2.0.6
 
 Automatically generate a legally binding & court recognized contract from a Gravity Forms submission. Proposals. Time sheets. Contracts.
 
@@ -360,6 +360,9 @@ Please report security bugs found in the source code of the Signature Add-On for
 **[Try a demo of the Signature Add-on for Gravity Forms Here](http://www.secure.approveme.com/demo/?utm_source=wprepo&utm_medium=link&utm_campaign=gravity-forms)**
 
 == Changelog ==
+Version 2.0.6
+FIX: Hardened Gravity Forms entry resolution on Stand Alone Document pages to always reflect the document actually being viewed.
+
 Version 2.0.5
 FIX: Wrong invite marked signed when document has multiple invitations, causing post-sign redirect to fail.
 

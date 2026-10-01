@@ -428,11 +428,10 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
         /**
          * Render the [esiggravity] shortcode and return the Gravity Forms field value.
          *
-         * Resolves the current document ID using the following priority:
-         *   1. `csum` query param → document_id_by_csum().
-         *   2. `document_id` query param via esigget().
-         *   3. Static rendering stack via Document::current_document_id() (TRL-1608/TRL-1609).
-         *   4. Defensive get_option() fallback for older core versions.
+         * Resolves the current document ID solely from the document actually being
+         * rendered (never a raw document_id/csum query param - TRL-1767):
+         *   1. Static rendering stack via Document::current_document_id() (TRL-1608/TRL-1609).
+         *   2. Defensive get_option() fallback for older core versions.
          *
          * @since 2.0.3
          *
@@ -453,29 +452,14 @@ if (!class_exists('ESIG_GRAVITY_Admin')) :
             if (!function_exists('WP_E_Sig'))
                 return;
 
-            // creating esignature api 
-            $api = new WP_E_Api();
+            // Resolve only the document actually rendering, never a raw document_id/csum query param. TRL-1767.
+            $document_id = null;
+            if ( class_exists( '\WpEsignature\Models\Document' ) && method_exists( '\WpEsignature\Models\Document', 'current_document_id' ) ) {
+                $document_id = \WpEsignature\Models\Document::current_document_id();
+            }
 
-            $csum = esigget( 'csum' );
-
-            if ( ! empty( $csum ) ) {
-                $document_id = $api->document->document_id_by_csum( $csum );
-            } else {
-                // Resolution priority (all request-scoped or stack-scoped):
-                // 1. ?document_id= query param via esigget() — covers most frontend flows.
-                // 2. Static rendering stack (TRL-1608/TRL-1609) — set by push_document_context()
-                //    during clone-render; resolves the correct ID without a shared DB write.
-                // 3. get_option() defensive fallback — only reached on older core versions that
-                //    do not yet expose Document::current_document_id().
-                $document_id = esigget( 'document_id' );
-
-                if ( empty( $document_id ) && class_exists( '\WpEsignature\Models\Document' ) && method_exists( '\WpEsignature\Models\Document', 'current_document_id' ) ) {
-                    $document_id = \WpEsignature\Models\Document::current_document_id();
-                }
-
-                if ( empty( $document_id ) ) {
-                    $document_id = get_option( 'esig_global_document_id' );
-                }
+            if ( empty( $document_id ) ) {
+                $document_id = get_option( 'esig_global_document_id' );
             }
            
             // getting document meta for gravity form 
